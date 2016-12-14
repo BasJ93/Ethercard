@@ -99,7 +99,11 @@ typedef struct {
 #define DHCP_INFINITE_LEASE  0xffffffff
 
 static byte dhcpState = DHCP_STATE_INIT;
+#ifdef __AVR__
 static char hostname[DHCP_HOSTNAME_MAX_LEN] = "Arduino-00";
+#elif defined __arm__ && defined (STM32_MCU_SERIES)
+static char hostname[DHCP_HOSTNAME_MAX_LEN] = "STM32---00";
+#endif
 static uint32_t currentXid;
 static uint32_t stateTimer;
 static uint32_t leaseStart;
@@ -324,7 +328,11 @@ bool EtherCard::dhcpSetup (const char *hname, bool fromRam) {
             strncpy(hostname, hname, DHCP_HOSTNAME_MAX_LEN);
         }
         else {
+			#ifdef __AVR__
             strncpy_P(hostname, hname, DHCP_HOSTNAME_MAX_LEN);
+			#elif defined __arm__ && defined STM32_MCU_SERIES
+			strncpy(hostname, hname, DHCP_HOSTNAME_MAX_LEN);
+			#endif			
         }
     }
     else {

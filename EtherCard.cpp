@@ -11,7 +11,9 @@
 
 #include <EtherCard.h>
 #include <stdarg.h>
+#if defined (__AVR__)
 #include <avr/eeprom.h>
+#endif
 
 #define WRITEBUF  0
 #define READBUF   1
@@ -192,8 +194,10 @@ void Stash::prepare (PGM_P fmt, ...) {
             case 'E': {
                 byte* s = (byte*) argval;
                 char d;
+				#ifdef __AVR__
                 while ((d = eeprom_read_byte(s++)) != 0)
                     ++arglen;
+				#endif
                 break;
             }
             case 'H': {
@@ -271,7 +275,9 @@ void Stash::extract (uint16_t offset, uint16_t count, void* buf) {
             c = pgm_read_byte(ptr++);
             break;
         case 'E':
+			#ifdef __AVR__
             c = eeprom_read_byte((byte*) ptr++);
+			#endif
             break;
         case 'H':
             c = ((Stash*) ptr)->get();
@@ -358,7 +364,9 @@ void BufferFiller::emit_p(PGM_P fmt, ...) {
             continue;
         }
         case 'L':
+			#ifdef __AVR__
             ltoa(va_arg(ap, long), (char*) ptr, 10);
+			#endif
             break;
         case 'S':
             strcpy((char*) ptr, va_arg(ap, const char*));
@@ -373,8 +381,10 @@ void BufferFiller::emit_p(PGM_P fmt, ...) {
         case 'E': {
             byte* s = va_arg(ap, byte*);
             char d;
+			#ifdef __AVR__
             while ((d = eeprom_read_byte(s++)) != 0)
                 *ptr++ = d;
+			#endif
             continue;
         }
         default:

@@ -186,7 +186,9 @@ void EtherCard::makeNetStr (char *resultstr,uint8_t *bytestr,uint8_t len,char se
     uint8_t i=0;
     uint8_t j=0;
     while(i<len) {
+		#ifdef __AVR__
         itoa((int)bytestr[i],&resultstr[j],base);
+		#endif
         // search end of str:
         while(resultstr[j]) {
             j++;

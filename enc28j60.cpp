@@ -13,6 +13,9 @@
 #else
 #include <Wprogram.h> // Arduino 0022
 #endif
+#if defined(__arm__)
+#include <SPI.h>
+#endif
 #include "enc28j60.h"
 
 uint16_t ENC28J60::bufferSize;
@@ -239,6 +242,7 @@ bool ENC28J60::promiscuous_enabled = false;
 static byte Enc28j60Bank;
 static byte selectPin;
 
+#if defined(__AVR__)
 void ENC28J60::initSPI () {
     pinMode(SS, OUTPUT);
     digitalWrite(SS, HIGH);
@@ -328,6 +332,66 @@ static void writeBuf(uint16_t len, const byte* data) {
     disableChip();
 }
 
+#elif defined (__arm__) && defined (STM32_MCU_SERIES)
+
+void ENC28J60::initSPI () {
+	
+    SPI.begin();
+	SPI.setBitOrder(MSBFIRST);
+	//SPI.setDataMode(SPI_MODE0);
+	//SPI.setClockDivider(SPI_CLOCK_DIV16);
+}
+
+static void enableChip () {
+    digitalWrite(selectPin, LOW);
+}
+
+static void disableChip () {
+    digitalWrite(selectPin, HIGH);
+}
+
+static byte readOp (byte op, byte address) {
+    enableChip();
+	byte result;
+	
+	SPI.transfer(op | (address & ADDR_MASK));
+	result = SPI.transfer(0x00);
+	if (address & 0x80)
+	{
+		result = SPI.transfer(0x00);
+	}
+    disableChip();
+    return result;
+}
+
+static void writeOp (byte op, byte address, byte data) {
+    enableChip();
+	SPI.transfer(op | (address & ADDR_MASK));
+	SPI.transfer(data);
+    disableChip();
+}
+
+static void readBuf(uint16_t len, byte* data) {
+    enableChip();
+	SPI.transfer(ENC28J60_READ_BUF_MEM);
+    while (len--) {
+		*data++ = SPI.transfer(0x00);
+    }
+    disableChip();
+}
+
+static void writeBuf(uint16_t len, const byte* data) {
+    enableChip();
+	SPI.transfer(ENC28J60_WRITE_BUF_MEM);
+	while (len--)
+	{
+		SPI.transfer(*data++);
+	}
+    disableChip();
+}
+
+#endif
+
 static void SetBank (byte address) {
     if ((address & BANK_MASK) != Enc28j60Bank) {
         writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0);
@@ -373,7 +437,9 @@ static void writePhy (byte address, uint16_t data) {
 
 byte ENC28J60::initialize (uint16_t size, const byte* macaddr, byte csPin) {
     bufferSize = size;
+	#ifdef __AVR__
     if (bitRead(SPCR, SPE) == 0)
+	#endif
         initSPI();
     selectPin = csPin;
     pinMode(selectPin, OUTPUT);
@@ -659,8 +725,10 @@ uint8_t ENC28J60::doBIST ( byte csPin) {
 #define RANDOM_RACE     0b1100
 
 // init
+	#ifdef __AVR__
     if (bitRead(SPCR, SPE) == 0)
         initSPI();
+	#endif
     selectPin = csPin;
     pinMode(selectPin, OUTPUT);
     disableChip();
@@ -734,7 +802,6 @@ uint8_t ENC28J60::doBIST ( byte csPin) {
     // The checksum should be equal
     return macResult == bitsResult;
 }
-
 
 void ENC28J60::memcpy_to_enc(uint16_t dest, void* source, int16_t num) {
     writeReg(EWRPT, dest);
